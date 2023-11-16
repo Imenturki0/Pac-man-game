@@ -1,6 +1,7 @@
 import pygame
 from board import boards1
 from Player import Player
+from Ghost import Ghost
 
 pygame.init()
 width = 800
@@ -10,7 +11,7 @@ flicker = False
 counter = 0
 direction = 0
 direction_command = 0
-player_speed = 2
+player_speed = 3
 screen = pygame.display.set_mode((width, height))
 timer = pygame.time.Clock()
 fps = 60
@@ -19,6 +20,22 @@ pygame.display.set_caption("My Board")
 nums_height = (height - 50) // len(level)
 nums_width = width // len(level[0])
 exit = False
+blinky_img = pygame.transform.scale(pygame.image.load(f'assets/ghost_images/red.png'), (35, 35))
+pinky_img = pygame.transform.scale(pygame.image.load(f'assets/ghost_images/pink.png'), (35, 35))
+inky_img = pygame.transform.scale(pygame.image.load(f'assets/ghost_images/blue.png'), (35, 35))
+clyde_img = pygame.transform.scale(pygame.image.load(f'assets/ghost_images/orange.png'), (35, 35))
+spooked_img = pygame.transform.scale(pygame.image.load(f'assets/ghost_images/powerup.png'), (35, 35))
+dead_img = pygame.transform.scale(pygame.image.load(f'assets/ghost_images/dead.png'), (35, 35))
+
+player_x = nums_width * 9
+player_y = nums_height * 12
+targets = [(player_x, player_y), (player_x, player_y), (player_x, player_y), (player_x, player_y)]
+score = 0
+powerup = False
+power_counter = 0
+eaten_ghosts = [False] * 4
+moving = False
+startup_counter = 0
 
 
 def draw_board():
@@ -34,39 +51,45 @@ def draw_board():
                                    (j * nums_width + (nums_width * 0.5), i * nums_height + (nums_height * 0.5)), 10)
 
 
-x = nums_width * 9
-y = nums_height * 12
-score = 0
 while not exit:
     # screen.blit(pygame.transform.scale(image, (50,50)),(50,50))
     timer.tick(fps)
     screen.fill((0, 0, 0))
     draw_board()
-    player = Player(x, y, counter, direction, direction_command, nums_width, nums_height, player_speed)  # 350,470
+    player = Player(player_x, player_y, counter, direction, direction_command, nums_width, nums_height,
+                    player_speed)  # 350,470
     turns_allowed = player.check_positions()
-    #turns_allowed=player.check_positions()
-    #print(x)
-    if direction == 0 and turns_allowed[0]:
-        x += player_speed
 
-    elif direction == 1 and turns_allowed[1]:
-        x -= player_speed
-    elif direction == 2 and turns_allowed[2]:
-        y -= player_speed
-    elif direction == 3 and turns_allowed[3]:
-        y += player_speed
+    blinky_ghost = Ghost(nums_width * 9, nums_height * 8, 2, blinky_img, targets[0])
+    inky_ghost = Ghost(nums_width * 9, nums_height * 9, 2, inky_img, targets[1])
+    pinky_ghost = Ghost(nums_width * 9, nums_height * 10, 2, pinky_img, targets[2])
+    clyde_ghost = Ghost(nums_width * 9, nums_height * 11, 2, clyde_img, targets[3])
+    blinky_ghost.chase_player(player.position_x, player.position_y)
+
+    # Move and draw the ghost
+    blinky_ghost.move(level, nums_width, nums_height, width, height)
+    blinky_ghost.draw(screen)
+    inky_ghost.draw(screen)
+    pinky_ghost.draw(screen)
+    blinky_ghost.draw(screen)
+    if moving:
+        if direction == 0 and turns_allowed[0]:
+            player_x += player_speed
+        elif direction == 1 and turns_allowed[1]:
+            player_x -= player_speed
+        elif direction == 2 and turns_allowed[2]:
+            player_y -= player_speed
+        elif direction == 3 and turns_allowed[3]:
+            player_y += player_speed
 
     player.draw(screen)
-
-    #player.move_player()
-
 
     # Convert player position to grid position
     grid_x = player.position_x // nums_width
     grid_y = player.position_y // nums_height
 
     # Call the eat_circle method
-    score=player.eat_circle(score,level, grid_x,grid_y)
+    score, powerup, power_counter, eaten_ghosts = player.check_collisions(score, level, grid_x, grid_y,powerup,power_counter,eaten_ghosts)
     # Render the score
     font = pygame.font.SysFont(None, 36)
     score_text = font.render('Score: ' + str(score), True, (255, 255, 255))
@@ -77,29 +100,47 @@ while not exit:
     if counter >= 19:
         counter = 0  # Reset counter
         flicker = not flicker
+    if powerup and power_counter < 600:
+        power_counter += 1
+    elif powerup and power_counter >= 600:
+        power_counter = 0
+        powerup = False
+        eaten_ghosts = [False] * 4
+    if startup_counter < 180:
+        moving = False
+        startup_counter += 1
+    else:
+        moving = True
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             exit = True
         if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_RIGHT :
+            if event.key == pygame.K_RIGHT:
                 direction_command = 0
-            if event.key == pygame.K_LEFT :
+            if event.key == pygame.K_LEFT:
                 direction_command = 1
-            if event.key == pygame.K_UP :
+            if event.key == pygame.K_UP:
                 direction_command = 2
-            if event.key == pygame.K_DOWN :
+            if event.key == pygame.K_DOWN:
                 direction_command = 3
 
     if direction_command == 0 and turns_allowed[0]:
         direction = 0
-    if direction_command == 1 and turns_allowed[1] :
+    if direction_command == 1 and turns_allowed[1]:
         direction = 1
-    if direction_command == 2 and turns_allowed[2] :
+    if direction_command == 2 and turns_allowed[2]:
         direction = 2
-    if direction_command == 3 and turns_allowed[3] :
+    if direction_command == 3 and turns_allowed[3]:
         direction = 3
 
+    if player_y > 700:
+        player_y = -47
+    if player_y < -50:
+        player_y = 700
 
+        # Make the ghost chase the player
 
     pygame.display.update()
     pygame.display.flip()
+pygame.quit()
