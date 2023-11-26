@@ -5,7 +5,7 @@ import math
 
 class Player:
     def __init__(self, position_x, position_y, counter, direction, command_direction, num_width, num_height,
-                 player_speed):
+                 player_speed,score,powerup):
         self.position_x = position_x
         self.position_y = position_y
         self.center_x = position_x + 17
@@ -20,8 +20,11 @@ class Player:
         self.player_images = self.load_player_images()
         self.last_valid_image = self.player_images[self.counter // 5]
         self.player_speed = player_speed
-
-        # self.turns_allowed=[False,False,False,False]
+        self.score=score
+        self.powerup =powerup
+        self.lives=3
+        self.turns_allowed=   self.check_positions()
+        self.rect = pygame.rect.Rect((self.position_x, self.position_y), (36, 36))
 
     def load_player_images(self):
         images = []
@@ -51,6 +54,7 @@ class Player:
         elif self.direction == 3:
             self.last_valid_image = pygame.transform.rotate(self.player_images[current_frame], 270)
             surface.blit(self.last_valid_image, (self.position_x, self.position_y))
+        pygame.draw.rect(surface, (255, 0, 0), self.rect, width=1)
 
 
     def check_positions(self):
@@ -100,29 +104,42 @@ class Player:
         #     turns[3] = True
         return turns
 
-    def move_player(self):
+    def move_player(self,play_x,play_y):
 
-        if self.direction == 0:  # Right
-            self.position_x += self.player_speed
-        elif self.direction == 1:  # Left
-            self.position_x -= self.player_speed
-        elif self.direction == 2:  # Up
-            self.position_y -= self.player_speed
-        elif self.direction == 3:  # Down
-            self.position_y += self.player_speed
+        # r, l, u, d
+        if self.direction == 0 and self.turns_allowed[0]:
+            play_x += self.player_speed
+        elif self.direction == 1 and self.turns_allowed[1]:
+            play_x -= self.player_speed
+        if self.direction == 2 and self.turns_allowed[2]:
+            play_y -= self.player_speed
+        elif self.direction == 3 and self.turns_allowed[3]:
+            play_y += self.player_speed
+        return play_x, play_y
 
-    def check_collisions(self, score, board, grid_x, grid_y,power ,power_count ,eaten_ghosts):
+    def check_collisions(self, board, grid_x, grid_y,power ,power_count ,eaten_ghosts):
         # Check if there is a circle at the current position
+
         if board[grid_y][grid_x] == 1:
             # Increase score
-            score += 10
+            self.score += 10
             # Set the board position to 0 to indicate the circle has been eaten
             board[grid_y][grid_x] = 0
+
         if board[grid_y][grid_x] ==2:
-            score += 50
+            self.score += 50
             board[grid_y][grid_x]=0
             power =True
             power_count = 0
             eaten_ghosts =[False]*4
 
-        return score , power , power_count ,eaten_ghosts
+        return self.score , power , power_count ,eaten_ghosts
+
+    def display_score(self,screen):
+        font = pygame.font.SysFont(None, 36)
+        score_text = font.render('Score: ' + str(self.score), True, (255, 255, 255))
+        screen.blit(score_text, (10, 750))
+        if self.powerup:
+            pygame.draw.circle(screen,'blue',(150,760),15)
+        for i in range(self.lives):
+            screen.blit(pygame.transform.scale(self.player_images[0],(25,25)),(650+i*35,750))
